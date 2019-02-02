@@ -2,6 +2,8 @@ clc;
 clear all;
 close all;
 
+
+
 %% 1
 % 
 % M_a = 68.9;                             % Nm
