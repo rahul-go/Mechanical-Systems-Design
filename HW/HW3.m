@@ -11,8 +11,8 @@ close all;
 % N_p = 20;                               % teeth
 % H = 120;                                % watts
 % N_g = 36;                               % teeth
-% m = 3.0;                                % mm
-% omega_p = 90 * 2*pi/60;                 % rad/s
+% m = 2.9;                                % mm
+% omega_p = 110 * 2*pi/60;                % rad/s
 % b = 18;                                 % mm
 % H_B = 200;
 % N_L = 10^8;                             % cycles
@@ -112,14 +112,16 @@ close all;
 % % Bending Stress
 % S_t = 0.533 * H_B + 88.3;               % MPa
 % % Stress-Cycle Factor
-% Y_N = 1.3558*N_L^-0.0178;
+% Y_N_p = 1.3558*N_L^-0.0178;
+% Y_N_g = 1.3558*(N_L * N_p/N_g)^-0.0178; 
 % % Y_N = (1.3558*N_L^-0.0178 + 1.6831*R^-0.0323) / 2;
 % % Temperature Factor
 % Y_theta = 1;
 % % Reliability Factor
 % Y_Z = 0.658 - 0.0759*log(1 - R);
 % % Bending Stress
-% sigma_all = S_t/1 * Y_N/(Y_theta*Y_Z);  % MPa
+% sigma_all_p = S_t/1 * Y_N_p/(Y_theta*Y_Z);  % MPa
+% sigma_all_g = S_t/1 * Y_N_g/(Y_theta*Y_Z);  % MPa
 % % Contact Stress
 % S_c = 2.22 * H_B + 200;                 % MPa
 % % Stress-Cycle Factor
@@ -138,9 +140,9 @@ close all;
 % sigma_all_cg = S_c * Z_N_g*Z_W_g/(Y_theta*Y_Z); % MPa
 % 
 % %% FOS
-% FOS_p = sigma_all / sigma_p
+% FOS_p = sigma_all_p / sigma_p
 % FOS_cp = sigma_all_cp / sigma_pc
-% FOS_g = sigma_all / sigma_g
+% FOS_g = sigma_all_g / sigma_g
 % FOS_cg = sigma_all_cg / sigma_gc
 
 
@@ -227,3 +229,143 @@ close all;
 % 
 % % Rated Power
 % H_g = W_t * v_t / 33000                 % hp
+
+
+
+%% 3
+phi = 23;                               % deg
+psi = 30;                               % deg
+N_p = 16;                               % teeth
+N_g = 48;                               % teeth
+omega_p = 300 * 2*pi/60;                % rad/s
+F = 2;                                  % in
+P_n = 6;                                % teeth/in
+H_B = 200;
+Q_v = 6;
+N_L = 10^8;                             % cycles
+R = 0.90;
+H = 5;                                  % hp
+
+% Analysis
+P_t = P_n * cosd(psi);                  % teeth/in
+d_P = N_p / P_t;
+d_g = d_P * (N_g/N_p);                  % in
+V = omega_p * d_P/2/12 * 60;            % ft/min
+W_t =(H*33000) / V;                     % lb
+
+%% Pinion Stresses
+Y_p = 0.296;
+% Overload Factor
+K_o = 1;
+% Dynamic Factor
+B = 0.25 * (12 - Q_v)^(2/3);
+A = 50 + 56 * (1 - B);
+K_v = ((A + sqrt(V)) / A)^B;
+% Size Factor
+K_s = 1.192 * (F/P_n*sqrt(Y_p))^0.0535; % Shigley's
+% Load-Distribution Factor
+C_mc = 1;
+C_pf = F/(10*d_P) - 0.0375 + 0.0125*F;
+if F/(10*d_P) < 0.05
+    C_pf = 0.025;
+end
+C_pm = 1;
+A = 0.247;
+B = 0.0167;
+C = -0.765*10^-4;
+C_ma = A + B*(F/25.4) + C*(F/25.4)^2;
+C_e = 1;
+K_m = 1 + C_mc * (C_pf*C_pm + C_ma*C_e);
+% Rim-Thickness Factor
+K_B = 1;
+% Bending-Strength Geometry Factor
+Y_J = 0.27;
+% Bending Stress
+sigma_p = W_t*K_o*K_v*K_s*P_n/F*K_m*K_B/Y_J % MPa
+% Elastic Coefficient
+Z_E = 191;                              % MPa^(1/2)
+% Surface Condition Factor
+Z_R = 1;
+% Surface-Strength Geometry Factor
+m_G = N_g / N_p;
+m_N = 1;
+Z_I = cosd(20)*sind(20)/(2*m_N) * m_G/(m_G+1);
+% Contact Stress
+sigma_pc = Z_E * sqrt(W_t*K_o*K_v*K_s*K_m/(d_P*F)*Z_R/Z_I) % MPa
+
+%% Gear Stresses
+Y_g = 0.397*2/7 + 0.409*5/7;
+% Overload Factor
+K_o = 1;
+% Dynamic Factor
+B = 0.25 * (12 - Q_v)^(2/3);
+A = 50 + 56 * (1 - B);
+K_v = ((A + sqrt(V)) / A)^B;
+% Size Factor
+K_s = 1.192 * (F/P_n*sqrt(Y_g))^0.0535;  % Connect
+% K_s = 1.192 * (F/P_d*sqrt(Y_g))^0.0535; % Shigley's
+% Load-Distribution Factor
+C_mc = 1;
+C_pf = F / (10*d_g) - 0.025;
+if F / (10*d_g) < 0.05
+    C_pf = 0.025;
+end
+C_pm = 1;
+A = 0.247;
+B = 0.0167;
+C = -0.765*10^-4;
+C_ma = A + B*(F/25.4) + C*(F/25.4)^2;
+C_e = 1;
+K_H = 1 + C_mc * (C_pf*C_pm + C_ma*C_e);
+% Rim-Thickness Factor
+K_B = 1;
+% Bending-Strength Geometry Factor
+Y_J = 0.39;
+% Bending Stress
+sigma_g = W_t*K_o*K_v*K_s*P_n/F*K_H*K_B/Y_J % MPa
+% Elastic Coefficient
+Z_E = 191;                              % MPa^(1/2)
+% Surface Condition Factor
+Z_R = 1;
+% Surface-Strength Geometry Factor
+m_G = m_G;
+m_N = 1;
+Z_I = cosd(20)*sind(20)/(2*m_N) * m_G/(m_G+1);
+% Contact Stress
+sigma_gc = Z_E * sqrt(W_t*K_o*K_v*K_s*K_H/(P_n*F)*Z_R/Z_I) % MPa
+
+%% Allowable Stresses
+% Bending Stress
+S_t = 0.533 * H_B + 88.3;               % MPa
+% Stress-Cycle Factor
+Y_N_p = 1.3558*N_L^-0.0178;
+Y_N_p = 1.3558*N_L^-0.0178;
+% Temperature Factor
+Y_theta = 1;
+% Reliability Factor
+Y_Z = 0.658 - 0.0759*log(1 - R);
+% Bending Stress
+sigma_all_p = S_t/1 * Y_N_p/(Y_theta*Y_Z);  % MPa
+sigma_all_g = S_t/1 * Y_N_g/(Y_theta*Y_Z);  % MPa
+% Contact Stress
+S_c = 2.22 * H_B + 200;                 % MPa
+% Stress-Cycle Factor
+A_prime = 0;
+Z_W_g = 1.0 + A_prime*(m_G - 1.0);
+% Temperature Factor
+Y_theta = Y_theta;
+% Reliability Factor
+Y_Z = Y_Z;
+Z_N_p = 1.4488*N_L^-0.023;
+Z_N_g = 1.4488*(N_L/(N_g/N_p))^-0.023;
+% Hardness Ratio Factor
+Z_W_p = 1;
+% Contact Stress
+sigma_all_cp = S_c * Z_N_p*Z_W_p/(Y_theta*Y_Z); % MPa
+sigma_all_cg = S_c * Z_N_g*Z_W_g/(Y_theta*Y_Z); % MPa
+
+%% FOS
+FOS_p = sigma_all_p / sigma_p
+FOS_cp = sigma_all_cp / sigma_pc
+FOS_g = sigma_all_g / sigma_g
+FOS_cg = sigma_all_cg / sigma_gc
